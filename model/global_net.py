@@ -78,34 +78,6 @@ class GlobalNet(pl.LightningModule):
         x = self.partial_conv4(x, mask)
 
         return x
-    
-    def loss_function(self, output):
-        l_iad = 0
-        l_dad = 0
-        loss = l_iad + self.config['loss_weight_t'] * l_dad
-        return loss
-
-
-    def training_step(self, batch: Tensor, batch_idx):
-        x = batch
-        output = self.forward(x)
-        loss = self.loss_function(output)
-        self.log('train_loss', loss, prog_bar=True, on_epoch=True, on_step=False)
-        return loss
-
-    def validation_step(self, batch: Tensor, batch_idx):
-        x = batch
-        output = self.forward(x)
-        loss = self.loss_function(output)
-        self.log('val_loss', loss, prog_bar=True, on_epoch=True, on_step=False)
-        return loss
-
-    def configure_optimizers(self):
-        print(self.config)
-        return optim.Adam(self.parameters(), betas=(self.config['beta_1'], self.config['beta_2']), lr=self.config['lr'])
-    
-
-
 
 
 ###############################################################################

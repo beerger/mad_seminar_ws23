@@ -13,7 +13,8 @@ device: cpu
 num_epochs: 100
 
 loss_weight_t: 0.01
-lr: 0.0001
+lr_global: 0.0001
+lr_dad: 0.00001
 batch_size: 64
 iterations: 200000
 beta_1: 0.9
