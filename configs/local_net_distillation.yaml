@@ -3,12 +3,6 @@ model_name: LOCALNET
 
 seed: 42
 
-split_dir: ./data/splits
-
-patch_size: !<tag:yaml.org,2002:seq> [33,33]
-
-teacher_size: !<tag:yaml.org,2002:seq> [224, 224]
-
 device: cpu # Implement in networks
 
 # FIXME: Decide on number of epochs, limited by 50k iterations and 64 batch size -> 3,200,000 images,
