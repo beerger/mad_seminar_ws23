@@ -30,11 +30,6 @@ class StudentTrainingModule(pl.LightningModule):
 
         # TODO: Do I need to freeze weights of decoder? Not to be optimized during training/validation steps
             
-
-    def forward(self, x):
-        student_output = self.student_model(x)
-        return student_output
-
     def loss_function(self, student_output, teacher_output):
         # Compute knowledge and compactness loss
         lk = self.knowledge_dist_loss(student_output, teacher_output)
@@ -66,20 +61,20 @@ class StudentTrainingModule(pl.LightningModule):
         return loss_c
 
     def training_step(self, batch: Tensor, batch_idx):
-        x = batch
-        student_output = self.forward(x)
+        local_patch, resnet_patch = batch
+        student_output = self.student_model(local_patch)
         with torch.no_grad():  # No need to track gradients for the teacher model
-            teacher_output = self.teacher_model(x)
+            teacher_output = self.teacher_model(resnet_patch)
             teacher_output = torch.flatten(teacher_output, start_dim=1)
         loss = self.loss_function(student_output, teacher_output)
         self.log('train_loss', loss, prog_bar=True, on_epoch=True, on_step=False)
         return loss
 
     def validation_step(self, batch: Tensor, batch_idx):
-        x = batch
-        student_output = self.forward(x)
+        local_patch, resnet_patch = batch
+        student_output = self.student_model(local_patch)
         with torch.no_grad():  # No need to track gradients for the teacher model
-            teacher_output = self.teacher_model(x)
+            teacher_output = self.teacher_model(resnet_patch)
             teacher_output = torch.flatten(teacher_output, start_dim=1)
         loss = self.loss_function(student_output, teacher_output)
         self.log('val_loss', loss, prog_bar=True, on_epoch=True, on_step=False)
