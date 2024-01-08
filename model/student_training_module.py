@@ -4,7 +4,7 @@ import torch.optim as optim
 import pytorch_lightning as pl
 from torch import Tensor
 
-class TrainingModule(pl.LightningModule):
+class StudentTrainingModule(pl.LightningModule):
     """
     A training module for both distillation and fine-tuning phases of a student model.
 
@@ -28,6 +28,9 @@ class TrainingModule(pl.LightningModule):
         for param in self.teacher_model.parameters():
             param.requires_grad = False
 
+        # TODO: Do I need to freeze weights of decoder? Not to be optimized during training/validation steps
+            
+
     def forward(self, x):
         student_output = self.student_model(x)
         return student_output
@@ -40,6 +43,8 @@ class TrainingModule(pl.LightningModule):
 
     def knowledge_dist_loss(self, student_output, teacher_output):
         output_flat = student_output.view(student_output.size(0), -1) # Flatten the student output to match the linear layer's input expectations
+
+        # TODO: torch.no_grad() required?
         decoded_output = self.decoder(output_flat) # Ensures same output dimensions as teacher model
         loss = torch.norm(decoded_output - teacher_output, p=2)**2
         return loss

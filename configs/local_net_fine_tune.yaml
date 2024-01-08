@@ -21,13 +21,8 @@ beta_1: 0.9
 beta_2: 0.999
 leaky_relu_slope: 0.005
 
-# parameteres for distillation on ImageNet
-dist_batch_size: 64
-dist_iterations: 50000
-
-# parameteres for fine-tuning Local-Net on certain category
-ft_batch_size: 16
-ft_iterations: 50000
+batch_size: 16
+iterations: 50000
 
 
 

@@ -1,0 +1,33 @@
+
+model_name: LOCALNET
+
+seed: 42
+
+split_dir: ./data/splits
+
+patch_size: !<tag:yaml.org,2002:seq> [33,33]
+
+teacher_size: !<tag:yaml.org,2002:seq> [224, 224]
+
+device: cpu # Implement in networks
+
+# FIXME: Decide on number of epochs, limited by 50k iterations and 64 batch size -> 3,200,000 images,
+# ImageNet1k ~ 1 million images => ~ 3.2 Epochs (end before epochs)
+
+num_epochs: 100
+
+# k balances distillations loss
+# c balances compactness loss
+loss_weight_k: 1.0
+loss_weight_c: 1.0
+lr: 0.0002
+beta_1: 0.9
+beta_2: 0.999
+leaky_relu_slope: 0.005
+
+batch_size: 64
+iterations: 50000
+
+
+
+

@@ -19,11 +19,11 @@ def load_resnet_18_teacher_model(checkpoint_path, device):
         with open(checkpoint_path, 'wb') as f:
             f.write(response.content)
     
-    model = models.resnet18(pretrained=False) # Load the ResNet-18 model
+    model = models.resnet18() # Load the ResNet-18 model
     # Load the downloaded weights
     checkpoint = torch.load(checkpoint_path, map_location=device)
     model.load_state_dict(checkpoint)
-    # Remove the fully connected layer
+    # Remove the fully connected layer (teacher model is only used to extract features, not classification)
     model = torch.nn.Sequential(*(list(model.children())[:-1]))
     model.eval().to(device)  # Set the model to evaluation mode and move the model to the specified device
     return model
