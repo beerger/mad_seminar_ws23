@@ -1,14 +1,9 @@
-
-model_name: LOCALNET
+model_name: LOCALNET_FT
 
 seed: 42
 
-split_dir: ./data/splits
-
-# image size should be 33 x 33 x 3 for Local-Net
-target_size: !<tag:yaml.org,2002:seq> [33,33]
-
-device: cpu
+local_net_output_dimensions: 128
+resnet_output_dimensions: 512
 
 num_epochs: 100
 

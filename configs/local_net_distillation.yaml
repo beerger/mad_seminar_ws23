@@ -1,14 +1,9 @@
-
-model_name: LOCALNET
+model_name: LOCALNET_DIST
 
 seed: 42
 
-device: cpu # Implement in networks
-
-# FIXME: Decide on number of epochs, limited by 50k iterations and 64 batch size -> 3,200,000 images,
-# ImageNet1k ~ 1 million images => ~ 3.2 Epochs (end before epochs)
-
-num_epochs: 100
+local_net_output_dimensions: 128
+resnet_output_dimensions: 512
 
 # k balances distillations loss
 # c balances compactness loss

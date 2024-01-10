@@ -1,14 +1,6 @@
-
 model_name: GLOBALNET
 
 seed: 42
-
-split_dir: ./data/splits
-
-# image size should be 256 x 256 x 3 for Global-Net
-target_size: !<tag:yaml.org,2002:seq> [256,256]
-
-device: cpu
 
 num_epochs: 100
 
