@@ -8,17 +8,19 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 
 class ImageNetPatchesDataset(Dataset):
-    def __init__(self, images, is_train=True):
-        self.images = images
+    def __init__(self, image_paths, is_train=True):
+        self.image_paths = image_paths
         self.is_train = is_train
         self.transform_local = self._build_transforms_local()
         self.transform_resnet = self._build_transforms_resnet()
 
     def __len__(self):
-        return len(self.images)
+        return len(self.image_paths)
 
     def __getitem__(self, idx):
-        image = self.images[idx].convert('RGB')
+        
+        image_path = self.image_paths[idx]
+        image = Image.open(image_path).convert('RGB')
 
         # Resize image to 256x256
         image = transforms.Resize((256, 256), interpolation=transforms.InterpolationMode.BILINEAR, antialias=True)(image)
@@ -49,18 +51,17 @@ class ImageNetPatchesDataset(Dataset):
         ])
 
 class ImageNetDataModule(pl.LightningDataModule):
-    def __init__(self, dataset, batch_size=64):
+    def __init__(self, train_image_paths, val_image_paths , batch_size=64):
         super().__init__()
-        self.dataset = dataset
+        self.train_image_paths = train_image_paths
+        self.val_image_paths = val_image_paths
         self.batch_size = batch_size
 
     def train_dataloader(self):
-        train_images = [item['image'] for item in self.dataset['train']]
-        train_dataset = ImageNetPatchesDataset(train_images, is_train=True)
+        train_dataset = ImageNetPatchesDataset(self.train_image_paths, is_train=True)
         return DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
 
     def val_dataloader(self):
-        val_images = [item['image'] for item in self.dataset['validation']]
-        val_dataset = ImageNetPatchesDataset(val_images, is_train=False)
+        val_dataset = ImageNetPatchesDataset(self.val_image_paths, is_train=False)
         return DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False)
 
