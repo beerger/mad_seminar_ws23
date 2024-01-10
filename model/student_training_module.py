@@ -82,4 +82,4 @@ class StudentTrainingModule(pl.LightningModule):
 
     def configure_optimizers(self):
         print(self.config)
-        return optim.Adam(self.student_model.parameters(), betas=(self.config['beta_1'], self.config['beta_2']), lr=self.config['lr'])
+        return optim.Adam(self.parameters(), betas=(self.config['beta_1'], self.config['beta_2']), lr=self.config['lr'])
