@@ -6,6 +6,7 @@ import pytorch_lightning as pl
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
+from PIL import UnidentifiedImageError
 
 class ImageNetPatchesDataset(Dataset):
     def __init__(self, image_paths, is_train=True, caching_strategy='none'):
@@ -38,6 +39,9 @@ class ImageNetPatchesDataset(Dataset):
             else:
                 # If the image is not cached, load and transform it, then add it to the cache
                 patch_local, patch_resnet = self.load_and_transform_image(idx)
+                if patch_local is None or patch_resnet is None:
+                    # Skip this index and try the next one
+                    return self.__getitem__((idx + 1) % len(self.image_paths))
                 self.cache[idx] = (patch_local, patch_resnet)
         else:
             # If caching is not enabled, simply load and transform the image without caching
@@ -47,19 +51,23 @@ class ImageNetPatchesDataset(Dataset):
 
     def load_and_transform_image(self, idx):
         image_path = self.image_paths[idx]
-        image = Image.open(image_path).convert('RGB')
+        try:
+            image = Image.open(image_path).convert('RGB')
 
-        # Resize image to 256x256
-        image = transforms.Resize((256, 256), interpolation=transforms.InterpolationMode.BILINEAR, antialias=True)(image)
+            # Resize image to 256x256
+            image = transforms.Resize((256, 256), interpolation=transforms.InterpolationMode.BILINEAR, antialias=True)(image)
 
-        # Create a patch for local and resnet transformations
-        patch = transforms.RandomCrop(33)(image) if self.is_train else transforms.CenterCrop(33)(image)
+            # Create a patch for local and resnet transformations
+            patch = transforms.RandomCrop(33)(image) if self.is_train else transforms.CenterCrop(33)(image)
 
-        # Apply transformations
-        patch_local = self.transform_local(patch)
-        patch_resnet = self.transform_resnet(patch)
+            # Apply transformations
+            patch_local = self.transform_local(patch)
+            patch_resnet = self.transform_resnet(patch)
 
-        return patch_local, patch_resnet
+            return patch_local, patch_resnet
+        except UnidentifiedImageError:
+            print(f"Error loading image: {image_path}")
+            return None, None
 
     def _build_transforms_local(self):
         # Define transforms for Local-Net
