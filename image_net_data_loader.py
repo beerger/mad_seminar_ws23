@@ -117,7 +117,7 @@ class ImageNetDataModule(pl.LightningDataModule):
         train_dataset = ImageNetPatchesDataset(
             self.train_image_paths,
             is_train=True, 
-            cache_images=self.cache_images
+            caching_strategy=self.caching_strategy
         )
         return DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
 
@@ -125,7 +125,7 @@ class ImageNetDataModule(pl.LightningDataModule):
         val_dataset = ImageNetPatchesDataset(
             self.val_image_paths, 
             is_train=False, 
-            cache_images=self.cache_images
+            caching_strategy=self.caching_strategy
         )
         return DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
 
