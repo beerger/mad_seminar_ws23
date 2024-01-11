@@ -51,17 +51,18 @@ class ImageNetPatchesDataset(Dataset):
         ])
 
 class ImageNetDataModule(pl.LightningDataModule):
-    def __init__(self, train_image_paths, val_image_paths , batch_size=64):
+    def __init__(self, train_image_paths, val_image_paths , batch_size=64, num_workers=4):
         super().__init__()
         self.train_image_paths = train_image_paths
         self.val_image_paths = val_image_paths
         self.batch_size = batch_size
+        self.num_workers = num_workers
 
     def train_dataloader(self):
         train_dataset = ImageNetPatchesDataset(self.train_image_paths, is_train=True)
-        return DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
+        return DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
 
     def val_dataloader(self):
         val_dataset = ImageNetPatchesDataset(self.val_image_paths, is_train=False)
-        return DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False)
+        return DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
 
