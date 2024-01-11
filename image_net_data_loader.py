@@ -8,12 +8,24 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 
 class ImageNetPatchesDataset(Dataset):
-    def __init__(self, image_paths, is_train=True, cache_images=False):
+    def __init__(self, image_paths, is_train=True, caching_strategy='none'):
         self.image_paths = image_paths
         self.is_train = is_train
         self.transform_local = self._build_transforms_local()
         self.transform_resnet = self._build_transforms_resnet()
-        self.cache = {} if cache_images else None # Initialize an empty cache if caching is enabled
+        
+        if caching_strategy == 'at-init':
+            self.cache = self._preload_images()
+        elif caching_strategy == 'on-the-fly':
+            self.cache = {}
+        else:
+            self.cache = None
+
+    def _preload_images(self):
+        cache = {}
+        for idx in range(len(self.image_paths)):
+            cache[idx] = self.load_and_transform_image(idx)
+        return cache
 
     def __len__(self):
         return len(self.image_paths)
@@ -70,24 +82,36 @@ class ImageNetDataModule(pl.LightningDataModule):
     """
     PyTorch Lightning data module for ImageNet dataset.
 
+    This module handles the loading and batching of ImageNet data for training and validation. 
+    It provides flexibility in data caching strategies to optimize memory usage and data access speed.
+
     Attributes:
         train_image_paths (list): List of paths to the training images.
         val_image_paths (list): List of paths to the validation images.
         batch_size (int): Batch size for training and validation data loaders.
         num_workers (int): Number of workers to use for data loading.
-        cache_images (bool): If True, caches images in memory. Use with caution.
+        caching_strategy (str): Determines the image caching strategy. 
+            'none' - No caching, images are loaded from disk on each access.
+            'on-the-fly' - Images are cached as they are accessed.
+            'at-init' - All images are preloaded into memory at initialization (requires substantial memory).
+
+    Warnings:
+        'at-init' caching strategy requires significant memory and should be used with caution. 
+        It's suitable when there is enough RAM to hold the entire dataset. 
+        'on-the-fly' caching will gradually consume more memory as more unique images are accessed.
     """
-    def __init__(self, train_image_paths, val_image_paths , batch_size=64, num_workers=4, cache_images=False):
+    def __init__(self, train_image_paths, val_image_paths , batch_size=64, num_workers=4, caching_strategy='none'):
         super().__init__()
         self.train_image_paths = train_image_paths
         self.val_image_paths = val_image_paths
         self.batch_size = batch_size
         self.num_workers = num_workers
-        self.cache_images = cache_images
+        self.caching_strategy = caching_strategy
 
-        if cache_images:
-            # Warning about memory usage
-            print("Warning: `cache_images` is set to True. Ensure you have enough memory to cache all images.")
+        if caching_strategy == 'at-init':
+            print("Warning: `caching_strategy` is set to 'at-init'. Ensure you have enough memory.")
+        elif caching_strategy == 'on-the-fly':
+            print("Warning: `caching_strategy` is set to 'on-the-fly'. Ensure you have enough memory.")
 
     def train_dataloader(self):
         train_dataset = ImageNetPatchesDataset(
