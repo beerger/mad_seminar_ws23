@@ -5,8 +5,6 @@ seed: 42
 local_net_output_dimensions: 128
 resnet_output_dimensions: 512
 
-num_epochs: 100
-
 # k balances distillations loss
 # c balances compactness loss
 loss_weight_k: 1.0
