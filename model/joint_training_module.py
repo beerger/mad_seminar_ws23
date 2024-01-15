@@ -12,6 +12,7 @@ class JointGlobalDADTrainingModule(pl.LightningModule):
         self.local_net = local_net
         self.global_net = global_net
         self.dad_head = dad_head
+        self.automatic_optimization = False
 
         # Make sure to freeze the Local-Net if it's not supposed to be finetuned
         self.local_net.eval()
@@ -30,10 +31,20 @@ class JointGlobalDADTrainingModule(pl.LightningModule):
         return local_features, global_features, dad_classification
 
     def training_step(self, batch, batch_idx):
+
+        optimizer_global, optimizer_dad = self.optimizers()
+        # Zero gradients for both optimizers
+        optimizer_global.zero_grad()
+        optimizer_dad.zero_grad()
         # Split your data into inputs and targets
         local_features, global_features, dad_output = self.forward(batch)
         _, _ ,_ , targets = batch
         loss = self.joint_loss(local_features, global_features, dad_output, targets)
+        # Backward pass for both optimizers
+        self.manual_backward(loss)
+        # Optimizer steps
+        optimizer_global.step()
+        optimizer_dad.step()
         self.log('train_loss', loss, prog_bar=True, on_epoch=True, on_step=False)
         return loss
     
