@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.optim as optim
 import pytorch_lightning as pl
 from torch import Tensor
-from iad import iad_head
 
 
 # need to concatenate features into a 256d vector before
