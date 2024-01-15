@@ -10,9 +10,8 @@ def binary_max_pooling(mask, kernel_size, stride, padding):
     return F.max_pool2d(mask, kernel_size=kernel_size, stride=stride, padding=padding)
 
 class GlobalNet(pl.LightningModule):
-    def __init__(self, config):
+    def __init__(self):
         super().__init__()
-        self.config = config
 
         # Image size is 256 x 256 x 3, outputs feature map size 1 x 1 x 128
 

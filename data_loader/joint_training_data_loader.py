@@ -53,7 +53,7 @@ class JointTrainingDataset(Dataset):
             image = Image.open(image_path).convert('RGB')
 
             # Image for Global-Net
-            I = self.global_transform(image)
+            I = transforms.Resize((256, 256), interpolation=transforms.InterpolationMode.BILINEAR, antialias=True)(image)
 
             # Create a patch with or without modifications
             if self.is_train:
@@ -61,20 +61,22 @@ class JointTrainingDataset(Dataset):
             else:
                 crop_transform = transforms.CenterCrop(33)
             
-            positive_patch, i, j, h, w = self.random_crop_with_coords(image, crop_transform)
+            positive_patch, i, j, h, w = self.random_crop_with_coords(I, crop_transform)
+            positive_patch = self.transform_local(positive_patch)
 
             patch, target_label = None, None
             # Determine whether to use positive or negative patch for this index
             use_negative = random.choice([True, False])
             if use_negative:
-                patch = self.transform_local(self.add_stain(positive_patch))
+                patch = self.add_stain(positive_patch)
                 target_label = 1  # Label for negative patch (abnormal)
             else:
-                patch = self.transform_local(positive_patch)
+                patch = positive_patch
                 target_label = 0  # Label for positive patch (normal)
 
-            binary_mask = self.generate_mask(image.size, (i, j, h, w))
+            binary_mask = self.generate_mask((i, j, h, w))
 
+            I = transforms.ToTensor()(I)
             return I, patch, binary_mask, target_label
         except UnidentifiedImageError:
             print(f"Error loading image: {image_path}")
@@ -93,13 +95,13 @@ class JointTrainingDataset(Dataset):
 
         return patch
 
-    def generate_mask(self, original_size, crop_coordinates):
-        mask = torch.ones(original_size)  # Assuming original_size is a tuple like (H, W)
+    def generate_mask(self, crop_coordinates):
+        mask_size = (256, 256)
+        mask = torch.ones(mask_size)
         x, y, h, w = crop_coordinates  # Unpack the crop coordinates
-        mask[y:y+h, x:x+w] = 0
+        mask[x:x+h, y:y+w] = 0
         return mask
     
-
     def random_crop_with_coords(self, img, crop_transform):
         i, j, h, w = crop_transform.get_params(img, crop_transform.size)
         cropped_img = transforms.functional.crop(img, i, j, h, w)
