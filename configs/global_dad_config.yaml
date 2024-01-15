@@ -1,8 +1,6 @@
-model_name: GLOBALNET
+model_name: GLOBALDAD
 
 seed: 42
-
-num_epochs: 100
 
 loss_weight_t: 0.01
 lr_global: 0.0001
