@@ -18,10 +18,11 @@ class JointGlobalDADTrainingModule(pl.LightningModule):
         for param in self.local_net.parameters():
             param.requires_grad = False
 
-    def forward(self, x):
+    def forward(self, batch):
+        I, patch, binary_mask, _ = batch
         # Get local and global features
-        local_features = self.local_net(x)
-        global_features = self.global_net(x)
+        local_features = self.local_net(patch)
+        global_features = self.global_net(I, binary_mask)
         # Concatenate features for DAD-head input
         combined_features = torch.cat((local_features, global_features), dim=1)
         # Pass concatenated features through DAD-head
@@ -30,10 +31,18 @@ class JointGlobalDADTrainingModule(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         # Split your data into inputs and targets
-        inputs, targets = batch
-        local_features, global_features, dad_output = self.forward(inputs)
+        local_features, global_features, dad_output = self.forward(batch)
+        _, _ ,_ , targets = batch
         loss = self.joint_loss(local_features, global_features, dad_output, targets)
-        self.log('train_loss', loss)
+        self.log('train_loss', loss, prog_bar=True, on_epoch=True, on_step=False)
+        return loss
+    
+    def validation_step(self, batch, batch_idx):
+        # Split your data into inputs and targets
+        local_features, global_features, dad_output = self.forward(batch)
+        _, _ ,_ , targets = batch
+        loss = self.joint_loss(local_features, global_features, dad_output, targets)
+        self.log('val_loss', loss, prog_bar=True, on_epoch=True, on_step=False)
         return loss
 
     def joint_loss(self, local_features, global_features, dad_output, targets):
@@ -56,5 +65,5 @@ class JointGlobalDADTrainingModule(pl.LightningModule):
         # Optimizers for both Global-Net and DAD-Head
         optimizer_global = optim.Adam(self.global_net.parameters(), betas=(self.config['beta_1'], self.config['beta_2']), lr=self.config['lr_global'])
         optimizer_dad = optim.Adam(self.dad_head.parameters(), betas=(self.config['beta_1'], self.config['beta_2']), lr=self.config['lr_dad'])
-        return [optimizer_global, optimizer_dad], []  # No LR schedulers in this example
+        return [optimizer_global, optimizer_dad], []  # No LR schedulers
 
