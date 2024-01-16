@@ -20,12 +20,14 @@ class JointGlobalDADTrainingModule(pl.LightningModule):
             param.requires_grad = False
 
     def forward(self, batch):
-        I, patch, binary_mask, _ = batch
+        I, patch, binary_masks, _ = batch
         # Get local and global features
         local_features = self.local_net(patch)
-        global_features = self.global_net(I, binary_mask)
+        global_features, _ = self.global_net(I, binary_masks)
+        local_features_flat = local_features.view(local_features.size(0), -1)
+        global_features_flat = global_features.view(global_features.size(0), -1)
         # Concatenate features for DAD-head input
-        combined_features = torch.cat((local_features, global_features), dim=1)
+        combined_features = torch.cat((local_features_flat, global_features_flat), dim=1)
         # Pass concatenated features through DAD-head
         dad_classification = self.dad_head(combined_features)
         return local_features, global_features, dad_classification

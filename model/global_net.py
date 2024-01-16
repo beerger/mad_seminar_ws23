@@ -16,36 +16,36 @@ class GlobalNet(pl.LightningModule):
         # Image size is 256 x 256 x 3, outputs feature map size 1 x 1 x 128
 
         self.partial_conv0 = PartialConv2d(in_channels=3, out_channels=16, 
-                                           kernel_size=7, stride=2, padding=0)
+                                           kernel_size=7, stride=2, padding=0, return_mask=True)
         self.relu1 = nn.ReLU()
         self.max_pool = nn.MaxPool2d(kernel_size=3, stride=2, padding=0)
 
         self.partial_conv1_1 = PartialConv2d(in_channels=16, out_channels=32,
-                                              kernel_size=3, stride=2, padding=0)
+                                              kernel_size=3, stride=2, padding=0, return_mask=True)
         self.relu2 = nn.ReLU()
 
         self.partial_conv1_2 = PartialConv2d(in_channels=32, out_channels=32, 
-                                             kernel_size=3, stride=1, padding=0)
+                                             kernel_size=3, stride=1, padding=0, return_mask=True)
         self.relu3 = nn.ReLU()
 
         self.partial_conv2_1 = PartialConv2d(in_channels=32, out_channels=64, 
-                                             kernel_size=3, stride=2, padding=0)
+                                             kernel_size=3, stride=2, padding=0, return_mask=True)
         self.relu4 = nn.ReLU()
 
         self.partial_conv2_2 = PartialConv2d(in_channels=64, out_channels=64, 
-                                             kernel_size=3, stride=1, padding=0)
+                                             kernel_size=3, stride=1, padding=0, return_mask=True)
         self.relu5 = nn.ReLU()
 
         self.partial_conv3_1 = PartialConv2d(in_channels=64, out_channels=128, 
-                                             kernel_size=3, stride=2, padding=0)
+                                             kernel_size=3, stride=2, padding=0, return_mask=True)
         self.relu6 = nn.ReLU()
 
         self.partial_conv3_2 = PartialConv2d(in_channels=128, out_channels=128, 
-                                             kernel_size=3, stride=1, padding=0)
+                                             kernel_size=3, stride=1, padding=0, return_mask=True)
         self.relu7 = nn.ReLU()
 
         self.partial_conv4 = PartialConv2d(in_channels=128, out_channels=128, 
-                                             kernel_size=3, stride=1, padding=0)
+                                             kernel_size=3, stride=1, padding=0, return_mask=True)
 
     def forward(self, x : Tensor, mask):
         

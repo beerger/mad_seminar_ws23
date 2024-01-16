@@ -76,6 +76,10 @@ class JointTrainingDataset(Dataset):
 
             binary_mask = self.generate_mask((i, j, h, w))
 
+
+            # TODO: See if necessary
+            binary_mask = binary_mask.unsqueeze(0) # Now binary_mask has shape: [1, height, width]
+
             I = transforms.ToTensor()(I)
             return I, patch, binary_mask, target_label
         except UnidentifiedImageError:
@@ -103,9 +107,18 @@ class JointTrainingDataset(Dataset):
         return mask
     
     def random_crop_with_coords(self, img, crop_transform):
-        i, j, h, w = crop_transform.get_params(img, crop_transform.size)
+        if isinstance(crop_transform, transforms.RandomCrop):
+            i, j, h, w = crop_transform.get_params(img, crop_transform.size)
+        else:  # For deterministic crops like CenterCrop
+            img_size = img.size
+            th, tw = crop_transform.size  # Target height and width
+            i = (img_size[0] - th) // 2
+            j = (img_size[1] - tw) // 2
+            h, w = th, tw
+
         cropped_img = transforms.functional.crop(img, i, j, h, w)
         return cropped_img, i, j, h, w
+
 
     def _build_transforms_local(self):
         # Define transforms for Local-Net
