@@ -80,10 +80,10 @@ class JointTrainingDataset(Dataset):
             use_negative = random.choice([True, False])
             if use_negative:
                 size = "1-12"  # 1% to 12% of the patch size
-                color = "0-255"  # Full range of grayscale intensities
+                color = "0-10"  # Full range of grayscale intensities
                 # Randomize irregularity and blur within specified ranges
                 irregularity_range = (0.3, 0.7)  # Example range for irregularity
-                blur_range = (0.05, 0.2)  # Example range for blur
+                blur_range = (0, 0)  # Example range for blur
 
                 irregularity = random.uniform(*irregularity_range)
                 blur = random.uniform(*blur_range)
@@ -112,6 +112,7 @@ class JointTrainingDataset(Dataset):
 
         row, col, _ = img.shape  # row and col are now correctly assigned
 
+    
         if '-' not in color: 
             color = int(color)
         else: 
@@ -156,12 +157,22 @@ class JointTrainingDataset(Dataset):
             rgb_mask     = np.expand_dims(mask, axis=-1)
         else: # Color image
             rgb_mask = np.repeat(mask[:, :, np.newaxis], img.shape[2], axis=2)
-        not_modified = np.subtract(np.ones_like(img), rgb_mask)
-        stain        = 255*random_noise(np.zeros(img.shape), mode='gaussian', mean = color/255., var = 0.05/255.)
-        result       = np.add( np.multiply(img,not_modified), np.multiply(stain,rgb_mask) ) 
+        #not_modified = np.subtract(np.ones_like(img), rgb_mask)
+        #noise_channel = random_noise(np.zeros((row, col)), mode='gaussian', mean=color/255., var=0.05/255.)
+        #stain = np.stack([255 * noise_channel] * 3, axis=-1)  # Replicate noise across all channels
+        #result       = np.add( np.multiply(img,not_modified), np.multiply(stain,rgb_mask) ) 
 
+        # Generate a constant-color stain
+        stain_intensity = color if isinstance(color, int) else randint(min_color, max_color)
+        stain = np.full(img.shape, stain_intensity, dtype=np.float32)
+        
+        # Apply the mask to the stain
+        stain_masked = stain * rgb_mask.astype(np.float32)
+        
+        # Apply the stain to the image
+        result = np.where(rgb_mask.astype(bool), stain_masked, img)
         # Convert result back to PyTorch tensor and permute back to [C, H, W]
-        result = torch.tensor(result).permute(2, 0, 1)
+        result = torch.from_numpy(result).permute(2, 0, 1)
         return result
 
     def perturbate_ellipse(self, contour, cx, cy, diag, irregularity):
