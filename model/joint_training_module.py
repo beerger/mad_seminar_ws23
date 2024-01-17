@@ -42,12 +42,13 @@ class JointGlobalDADTrainingModule(pl.LightningModule):
         local_features, global_features, dad_output = self.forward(batch)
         _, _ ,_ , targets = batch
         loss = self.joint_loss(local_features, global_features, dad_output, targets)
+        avg_loss = loss.mean()
         # Backward pass for both optimizers
-        self.manual_backward(loss)
+        self.manual_backward(avg_loss)
         # Optimizer steps
         optimizer_global.step()
         optimizer_dad.step()
-        self.log('train_loss', loss, prog_bar=True, on_epoch=True, on_step=False)
+        self.log('train_loss', avg_loss, prog_bar=True, on_epoch=True, on_step=False)
         return loss
     
     def validation_step(self, batch, batch_idx):
@@ -55,7 +56,8 @@ class JointGlobalDADTrainingModule(pl.LightningModule):
         local_features, global_features, dad_output = self.forward(batch)
         _, _ ,_ , targets = batch
         loss = self.joint_loss(local_features, global_features, dad_output, targets)
-        self.log('val_loss', loss, prog_bar=True, on_epoch=True, on_step=False)
+        avg_loss = loss.mean()
+        self.log('val_loss', avg_loss, prog_bar=True, on_epoch=True, on_step=False)
         return loss
 
     def joint_loss(self, local_features, global_features, dad_output, targets):
@@ -68,8 +70,9 @@ class JointGlobalDADTrainingModule(pl.LightningModule):
         return total_loss
 
     def compute_dad_loss(self, dad_output, targets):
-        # Create an instance of the BCEWithLogitsLoss
-        loss_fn = nn.BCEWithLogitsLoss()
+        loss_fn = nn.CrossEntropyLoss()
+        # Ensure targets are of dtype long, as expected by CrossEntropyLoss
+        targets = targets.long()
         # Compute the loss
         dad_loss = loss_fn(dad_output, targets)
         return dad_loss
