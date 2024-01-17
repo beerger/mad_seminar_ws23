@@ -8,6 +8,17 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from PIL import UnidentifiedImageError
 import random
+import numpy as np
+from random import randint, uniform
+from numpy.random import normal, uniform
+from skimage.util import random_noise
+from skimage.filters import threshold_otsu
+from skimage.draw import ellipse_perimeter
+from scipy.interpolate import interp1d 
+from scipy.ndimage import gaussian_filter
+import math
+import cv2
+
 
 class JointTrainingDataset(Dataset):
     def __init__(self, image_paths, is_train=True, caching_strategy='none'):
@@ -68,7 +79,16 @@ class JointTrainingDataset(Dataset):
             # Determine whether to use positive or negative patch for this index
             use_negative = random.choice([True, False])
             if use_negative:
-                patch = self.add_stain(positive_patch)
+                size = "1-12"  # 1% to 12% of the patch size
+                color = "0-255"  # Full range of grayscale intensities
+                # Randomize irregularity and blur within specified ranges
+                irregularity_range = (0.3, 0.7)  # Example range for irregularity
+                blur_range = (0.05, 0.2)  # Example range for blur
+
+                irregularity = random.uniform(*irregularity_range)
+                blur = random.uniform(*blur_range)
+                
+                patch = self.add_stain(positive_patch, size, color, irregularity, blur)
                 target_label = 1  # Label for negative patch (abnormal)
             else:
                 patch = positive_patch
@@ -85,19 +105,100 @@ class JointTrainingDataset(Dataset):
         except UnidentifiedImageError:
             print(f"Error loading image: {image_path}")
             return None, None, None, None
+
+    def add_stain(self, img, size, color, irregularity, blur):
+
+        img = img.permute(1, 2, 0).numpy()
+
+        row, col, _ = img.shape  # row and col are now correctly assigned
+
+        if '-' not in color: 
+            color = int(color)
+        else: 
+            min_color, max_color = int(color.split('-')[0]), int(color.split('-')[1])
+            color                = randint(min_color, max_color)
+        col, row             = img.shape[1], img.shape[0]
+        min_range, max_range = float(size.split('-')[0]), float(size.split('-')[1])
+        rotation = uniform(0, 2*np.pi)
+        a = max(1, randint(int(min_range/100.0 * col), min(int(max_range/100.0 * col), col//2)))
+        b = max(1, randint(int(min_range/100.0 * row), min(int(max_range/100.0 * row), row//2)))
+
+        # Ensure the ellipse fits within the image
+        cx = randint(a, col - a)
+        cy = randint(b, row - b)
+
+        #print(f"cy: {cy}")
+        #print(f"cx: {cx}")
+        #print(f"a: {a}")
+        #print(f"b: {b}")
+        #print(f"rotation: {rotation}")
+        x,y      = ellipse_perimeter(cy, cx, a, b, rotation)
+
+        #print(f"x: {x}")
+        #print(f"y: {y}")
+
         
-    def add_stain(self, patch):
-        # Randomly choose top-left corner of the stain
-        x = random.randint(0, 23)  # 33 - 10 = 23 to ensure the stain fits in the patch
-        y = random.randint(0, 23)
+        contour  = np.array([[i,j] for i,j in zip(x,y)])
 
-        # Create the stain (black patch)
-        stain = torch.zeros((3, 10, 10))
+        # Change the shape of the ellipse 
+        if irregularity > 0: 
+            contour = self.perturbate_ellipse(contour, cx, cy, (a+b)/2, irregularity)
 
-        # Apply the stain to the patch
-        patch[:, y:y+10, x:x+10] = stain
+        #print(f"row: {row}")
+        #print(f"col: {col}")
+        mask = np.zeros((row, col)) 
+        mask = cv2.drawContours(mask, [contour], -1, 1, -1)
 
-        return patch
+        if blur != 0 : 
+            mask = gaussian_filter(mask, max(a,b)*blur)
+
+        if img.shape[2] == 1: # Grayscale image
+            rgb_mask     = np.expand_dims(mask, axis=-1)
+        else: # Color image
+            rgb_mask = np.repeat(mask[:, :, np.newaxis], img.shape[2], axis=2)
+        not_modified = np.subtract(np.ones_like(img), rgb_mask)
+        stain        = 255*random_noise(np.zeros(img.shape), mode='gaussian', mean = color/255., var = 0.05/255.)
+        result       = np.add( np.multiply(img,not_modified), np.multiply(stain,rgb_mask) ) 
+
+        # Convert result back to PyTorch tensor and permute back to [C, H, W]
+        result = torch.tensor(result).permute(2, 0, 1)
+        return result
+
+    def perturbate_ellipse(self, contour, cx, cy, diag, irregularity):
+        # Keep only some points
+        if len(contour) < 20: 
+            pts = contour
+        else: 
+            pts = contour[0::int(len(contour)/20)]
+
+        # Perturbate coordinates
+        for idx,pt in enumerate(pts): 
+            pts[idx] = [pt[0]+randint(-int(diag*irregularity),int(diag*irregularity)), pt[1]+randint(-int(diag*irregularity),int(diag*irregularity))]
+        pts = sorted(pts, key=lambda p: self.clockwiseangle(p, cx, cy))
+        pts.append([pts[0][0], pts[0][1]])
+
+        # Interpolate between remaining points
+        i = np.arange(len(pts))
+        interp_i = np.linspace(0, i.max(), 10 * i.max())
+        xi = interp1d(i, np.array(pts)[:,0], kind='cubic')(interp_i)
+        yi = interp1d(i, np.array(pts)[:,1], kind='cubic')(interp_i) 
+
+        return np.array([[int(i),int(j)] for i,j in zip(yi,xi)])
+
+    def clockwiseangle(self, point, cx, cy):
+        refvec = [0 , 1]
+        vector = [point[0]-cy, point[1]-cx]
+        norm   = math.hypot(vector[0], vector[1])
+        # If length is zero there is no angle
+        if norm == 0:
+            return -math.pi
+        normalized = [vector[0]/norm, vector[1]/norm]
+        dotprod    = normalized[0]*refvec[0] + normalized[1]*refvec[1] 
+        diffprod   = refvec[1]*normalized[0] - refvec[0]*normalized[1] 
+        angle      = math.atan2(diffprod, dotprod)
+        if angle < 0:
+            return 2*math.pi+angle
+        return angle
 
     def generate_mask(self, crop_coordinates):
         mask_size = (256, 256)
