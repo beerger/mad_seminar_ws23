@@ -7,7 +7,6 @@ from PIL import UnidentifiedImageError
 class MVTecInferenceDataSet(Dataset):
     def __init__(self, image_paths, caching_strategy='none'):
         self.image_paths = image_paths
-        self.transform_local = self._build_transforms_local()
         self.transform_global = self._build_transforms_global()
         
         if caching_strategy == 'at-init':
