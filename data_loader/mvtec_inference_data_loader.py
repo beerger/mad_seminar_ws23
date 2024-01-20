@@ -1,5 +1,3 @@
-import os
-import torch
 import pytorch_lightning as pl
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
@@ -32,63 +30,27 @@ class MVTecInferenceDataSet(Dataset):
         if self.cache is not None:
             # If caching is enabled and the image is cached, return it from the cache
             if idx in self.cache:
-                I, patches, masks = self.cache[idx]
+                I = self.cache[idx]
             else:
                 # If the image is not cached, load and transform it, then add it to the cache
-                I, patches, masks = self.load_and_transform_image(idx)
-                self.cache[idx] = (I, patches, masks)
+                I = self.load_and_transform_image(idx)
+                self.cache[idx] = (I)
         else:
             # If caching is not enabled, simply load and transform the image without caching
-            I, patches, masks = self.load_and_transform_image(idx)
+            I = self.load_and_transform_image(idx)
 
-        return I, patches, masks
+        return I
 
     def load_and_transform_image(self, idx):
         image_path = self.image_paths[idx]
         try:
             image = Image.open(image_path).convert('RGB')
             I = self.transform_global(image)
-            #I = transforms.Resize((256, 256), interpolation=transforms.InterpolationMode.BILINEAR, antialias=True)(image)  # Resize to the expected input size for the Global-Net
-            patches, masks = self.create_patches_and_masks(I, patch_size=33, patches_per_side=20)
-            #I = transforms.ToTensor()(I)
-            return I, patches, masks
+            return I
         except UnidentifiedImageError:
             print(f"Error loading image: {image_path}")
             return None, None, None
 
-    def create_patches_and_masks(self, image, patch_size=33, patches_per_side=20):
-
-        image_size = 256
-        step = (image_size - patch_size) / (patches_per_side - 1)
-        # crop takes y, x, h, w
-        crop_coords = []
-        for j in range(patches_per_side):
-          for i in range(patches_per_side):
-            crop_coords.append((int(j*step), int(i*step), patch_size, patch_size))
-
-        patches = []
-        masks = []
-        for coord in crop_coords:
-            y, x, h, w = coord
-            patch = transforms.functional.crop(image, y, x, h, w)
-            patch = self.transform_local(patch)
-            patches.append(patch)
-            masks.append(self.generate_mask(coord))
-        return patches, masks
-
-    def generate_mask(self, crop_coordinates, mask_size=256):
-        mask = torch.ones((mask_size, mask_size))
-        y, x, h, w = crop_coordinates  # Unpack the crop coordinates
-        mask[y:y+h, x:x+w] = 0
-        return mask
-
-    def _build_transforms_local(self):
-        # Define transforms for Local-Net
-        return transforms.Compose([
-            # Mean and std from ImageNet
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-        ])
-    
     def _build_transforms_global(self):
         return transforms.Compose([
             transforms.Resize((256, 256), interpolation=transforms.InterpolationMode.BILINEAR, antialias=True),  # Resize to the expected input size for the Global-Net
@@ -116,6 +78,3 @@ class MVTecInferenceDataModule(pl.LightningDataModule):
             caching_strategy=self.caching_strategy
         )
         return DataLoader(test_dataset, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
-
-
-
