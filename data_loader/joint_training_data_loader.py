@@ -214,8 +214,8 @@ class JointTrainingDataset(Dataset):
     def generate_mask(self, crop_coordinates):
         mask_size = (256, 256)
         mask = torch.ones(mask_size)
-        x, y, h, w = crop_coordinates  # Unpack the crop coordinates
-        mask[x:x+h, y:y+w] = 0
+        y, x, h, w = crop_coordinates  # Unpack the crop coordinates
+        mask[y:y+h, x:x+w] = 0
         return mask
     
     def random_crop_with_coords(self, img, crop_transform):

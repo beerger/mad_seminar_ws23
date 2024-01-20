@@ -47,12 +47,10 @@ class MVTecInferenceDataSet(Dataset):
         image_path = self.image_paths[idx]
         try:
             image = Image.open(image_path).convert('RGB')
-
-            # Image for Global-Net
             I = self.transform_global(image)
+            #I = transforms.Resize((256, 256), interpolation=transforms.InterpolationMode.BILINEAR, antialias=True)(image)  # Resize to the expected input size for the Global-Net
             patches, masks = self.create_patches_and_masks(I, patch_size=33, patches_per_side=20)
-            
-
+            #I = transforms.ToTensor()(I)
             return I, patches, masks
         except UnidentifiedImageError:
             print(f"Error loading image: {image_path}")
@@ -60,35 +58,33 @@ class MVTecInferenceDataSet(Dataset):
 
     def create_patches_and_masks(self, image, patch_size=33, patches_per_side=20):
 
-        image_size = image.shape[-2]  # Assuming image shape is [C, H, W]
+        image_size = 256
         step = (image_size - patch_size) / (patches_per_side - 1)
         # crop takes y, x, h, w
         crop_coords = []
         for j in range(patches_per_side):
           for i in range(patches_per_side):
-            crop_coords.append(int(j*step), int(i*step), patch_size, patch_size)
+            crop_coords.append((int(j*step), int(i*step), patch_size, patch_size))
 
         patches = []
         masks = []
-
         for coord in crop_coords:
             y, x, h, w = coord
             patch = transforms.functional.crop(image, y, x, h, w)
             patch = self.transform_local(patch)
             patches.append(patch)
-            masks.append(self.generate_mask(coord, image_size))
+            masks.append(self.generate_mask(coord))
         return patches, masks
 
     def generate_mask(self, crop_coordinates, mask_size=256):
-        mask = torch.ones(mask_size)
+        mask = torch.ones((mask_size, mask_size))
         y, x, h, w = crop_coordinates  # Unpack the crop coordinates
-        mask[x:x+h, y:y+w] = 0
+        mask[y:y+h, x:x+w] = 0
         return mask
 
     def _build_transforms_local(self):
         # Define transforms for Local-Net
         return transforms.Compose([
-            transforms.ToTensor(),
             # Mean and std from ImageNet
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
