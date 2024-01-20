@@ -74,7 +74,7 @@ class AnomalyDetector:
             global_features_flat = global_features.view(global_features.size(0), -1)
             # Concatenate features for DAD-head input
             combined_features = torch.cat((local_features_flat, global_features_flat), dim=1)
-            dad_score = 1 - self.dad_head(combined_features)
+            dad_score = 1 - self.dad_head.infer(combined_features)
             iad_scores.append(iad_score)
             dad_scores.append(dad_score)
 
@@ -122,30 +122,34 @@ class AnomalyDetector:
         ])(image)
 
 
-    def generate_anomaly_map(final_scores, image_shape, patch_coords, power=5):
-        height, width = image_shape[2], image_shape[3]  # Assuming image_shape is in the format [N, C, H, W]
-        print(height)
-        print(width)
-        anomaly_map = np.zeros((height, width))
-        weight_map = np.zeros((height, width))
-
+    def generate_anomaly_map(self, final_scores, image_shape, patch_coords, power=5):
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    
+        # Convert to PyTorch tensors and send to GPU
+        final_scores = torch.tensor(final_scores).to(device)
+        patch_coords = torch.tensor(patch_coords).to(device)
+    
+        height, width = image_shape[2], image_shape[3]
+        xx, yy = torch.meshgrid(torch.arange(width, device=device), torch.arange(height, device=device))
+        
+        anomaly_map = torch.zeros((height, width), device=device)
+        weight_map = torch.zeros_like(anomaly_map)
+    
         for score, (y, x, h, w) in zip(final_scores, patch_coords):
-            patch_center = (x + w // 2, y + h // 2)
-
-            # Apply IDW interpolation for each pixel
-            for yy in range(height):
-                for xx in range(width):
-                    distance = np.sqrt((xx - patch_center[0])**2 + (yy - patch_center[1])**2)
-                    weight = 1 / (distance ** power if distance != 0 else 1)
-                    anomaly_map[yy, xx] += weight * score
-                    weight_map[yy, xx] += weight
-
+            patch_center_x, patch_center_y = x + w // 2, y + h // 2
+    
+            # Compute distances for all pixels in parallel
+            distance = torch.sqrt((xx - patch_center_x) ** 2 + (yy - patch_center_y) ** 2)
+            weight = 1.0 / (distance ** power + 1e-6)  # Add a small epsilon to avoid division by zero
+    
+            anomaly_map += weight * score
+            weight_map += weight
+    
         # Normalize the anomaly map
         weight_map[weight_map == 0] = 1  # Avoid division by zero
         anomaly_map /= weight_map
-
-        return anomaly_map
-
+    
+        return anomaly_map.cpu().numpy()  # Convert back to numpy array if needed
 # This class would be used after all individual components have been instantiated and trained.
 # Example usage:
 # anomaly_detector = AnomalyDetector(local_net, global_net, iad_head, dad_head, lambda_s)
