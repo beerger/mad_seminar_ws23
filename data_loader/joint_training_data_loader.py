@@ -19,7 +19,6 @@ from scipy.ndimage import gaussian_filter
 import math
 import cv2
 
-
 class JointTrainingDataset(Dataset):
     def __init__(self, image_paths, is_train=True, caching_strategy='none'):
         self.image_paths = image_paths
@@ -73,17 +72,17 @@ class JointTrainingDataset(Dataset):
                 crop_transform = transforms.CenterCrop(33)
             
             positive_patch, i, j, h, w = self.random_crop_with_coords(I, crop_transform)
-            positive_patch = self.transform_local(positive_patch)
+            positive_patch = transforms.ToTensor()(positive_patch)
 
             patch, target_label = None, None
             # Determine whether to use positive or negative patch for this index
             use_negative = random.choice([True, False])
             if use_negative:
                 size = "1-12"  # 1% to 12% of the patch size
-                color = "0-10"  # Full range of grayscale intensities
+                color = "0-100"  # Full range of grayscale intensities
                 # Randomize irregularity and blur within specified ranges
                 irregularity_range = (0.3, 0.7)  # Example range for irregularity
-                blur_range = (0, 0)  # Example range for blur
+                blur_range = (0.0, 0.0)  # Example range for blur
 
                 irregularity = random.uniform(*irregularity_range)
                 blur = random.uniform(*blur_range)
@@ -94,6 +93,7 @@ class JointTrainingDataset(Dataset):
                 patch = positive_patch
                 target_label = 0  # Label for positive patch (normal)
 
+            patch = self.transform_local(patch)
             binary_mask = self.generate_mask((i, j, h, w))
 
             binary_mask = binary_mask.unsqueeze(0) # Now binary_mask has shape: [1, height, width]
@@ -107,16 +107,13 @@ class JointTrainingDataset(Dataset):
     def add_stain(self, img, size, color, irregularity, blur):
 
         img = img.permute(1, 2, 0).numpy()
-
-        row, col, _ = img.shape  # row and col are now correctly assigned
-
     
         if '-' not in color: 
             color = int(color)
         else: 
             min_color, max_color = int(color.split('-')[0]), int(color.split('-')[1])
             color                = randint(min_color, max_color)
-        col, row             = img.shape[1], img.shape[0]
+        row, col, _ = img.shape
         min_range, max_range = float(size.split('-')[0]), float(size.split('-')[1])
         rotation = uniform(0, 2*np.pi)
         a = max(1, randint(int(min_range/100.0 * col), min(int(max_range/100.0 * col), col//2)))
@@ -126,16 +123,7 @@ class JointTrainingDataset(Dataset):
         cx = randint(a, col - a)
         cy = randint(b, row - b)
 
-        #print(f"cy: {cy}")
-        #print(f"cx: {cx}")
-        #print(f"a: {a}")
-        #print(f"b: {b}")
-        #print(f"rotation: {rotation}")
         x,y      = ellipse_perimeter(cy, cx, a, b, rotation)
-
-        #print(f"x: {x}")
-        #print(f"y: {y}")
-
         
         contour  = np.array([[i,j] for i,j in zip(x,y)])
 
@@ -143,8 +131,6 @@ class JointTrainingDataset(Dataset):
         if irregularity > 0: 
             contour = self.perturbate_ellipse(contour, cx, cy, (a+b)/2, irregularity)
 
-        #print(f"row: {row}")
-        #print(f"col: {col}")
         mask = np.zeros((row, col)) 
         mask = cv2.drawContours(mask, [contour], -1, 1, -1)
 
@@ -155,20 +141,17 @@ class JointTrainingDataset(Dataset):
             rgb_mask     = np.expand_dims(mask, axis=-1)
         else: # Color image
             rgb_mask = np.repeat(mask[:, :, np.newaxis], img.shape[2], axis=2)
-        #not_modified = np.subtract(np.ones_like(img), rgb_mask)
-        #noise_channel = random_noise(np.zeros((row, col)), mode='gaussian', mean=color/255., var=0.05/255.)
-        #stain = np.stack([255 * noise_channel] * 3, axis=-1)  # Replicate noise across all channels
-        #result       = np.add( np.multiply(img,not_modified), np.multiply(stain,rgb_mask) ) 
 
         # Generate a constant-color stain
-        stain_intensity = color if isinstance(color, int) else randint(min_color, max_color)
+        stain_intensity = (color / 255.) if isinstance(color, int) else (randint(min_color, max_color) / 255.)
         stain = np.full(img.shape, stain_intensity, dtype=np.float32)
         
         # Apply the mask to the stain
         stain_masked = stain * rgb_mask.astype(np.float32)
-        
+
         # Apply the stain to the image
         result = np.where(rgb_mask.astype(bool), stain_masked, img)
+
         # Convert result back to PyTorch tensor and permute back to [C, H, W]
         result = torch.from_numpy(result).permute(2, 0, 1)
         return result
@@ -233,7 +216,7 @@ class JointTrainingDataset(Dataset):
     def _build_transforms_local(self):
         # Define transforms for Local-Net
         return transforms.Compose([
-            transforms.ToTensor(),
+            #transforms.ToTensor(),
             # Mean and std from ImageNet
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
