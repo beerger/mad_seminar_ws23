@@ -42,7 +42,6 @@ class JointGlobalDADTrainingModule(pl.LightningModule):
         local_features, global_features, dad_output = self.forward(batch)
         _, _ ,_ , targets = batch
         loss = self.joint_loss(local_features, global_features, dad_output, targets)
-        #avg_loss = loss.mean()
         # Backward pass for both optimizers
         self.manual_backward(loss)
         # Optimizer steps
@@ -56,7 +55,6 @@ class JointGlobalDADTrainingModule(pl.LightningModule):
         local_features, global_features, dad_output = self.forward(batch)
         _, _ ,_ , targets = batch
         loss = self.joint_loss(local_features, global_features, dad_output, targets)
-        #avg_loss = loss.mean()
         self.log('val_loss', loss, prog_bar=True, on_epoch=True, on_step=False)
         return loss
 
