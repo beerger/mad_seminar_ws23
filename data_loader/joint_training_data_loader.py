@@ -96,8 +96,6 @@ class JointTrainingDataset(Dataset):
 
             binary_mask = self.generate_mask((i, j, h, w))
 
-
-            # TODO: See if necessary
             binary_mask = binary_mask.unsqueeze(0) # Now binary_mask has shape: [1, height, width]
 
             I = transforms.ToTensor()(I)
