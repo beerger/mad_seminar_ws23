@@ -28,4 +28,7 @@ def iad_head(local_feature, global_feature):
     feature_dim = local_feature.size(1)
     l_iad = squared_l2_norm / feature_dim
     
-    return l_iad
+    # Take the mean across the batch
+    batch_mean_iad = l_iad.mean()
+    
+    return batch_mean_iad
