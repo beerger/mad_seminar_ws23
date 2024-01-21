@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 import pytorch_lightning as pl
 from torch import Tensor
-
+import torch.nn.functional as F
 
 # need to concatenate features into a 256d vector before
 class DADHead(pl.LightningModule):
@@ -24,8 +24,8 @@ class DADHead(pl.LightningModule):
     
     def infer(self, x):
         # Use this method for inference to get class probabilities
-        x = self.forward(x)
-        x = nn.functional.softmax(x, dim=1)
+        logits = self.forward(x)
+        probabilities = F.softmax(x, dim=1)
         # Assuming the positive class is the first class
-        prob_positive_class = x[:, 0]
+        prob_positive_class = probabilities[:, 0]
         return prob_positive_class

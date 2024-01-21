@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch import Tensor
-from iad import iad_head
+from .iad import iad_head
 
 class JointGlobalDADTrainingModule(pl.LightningModule):
     def __init__(self, config, local_net, global_net, dad_head):
@@ -14,7 +14,7 @@ class JointGlobalDADTrainingModule(pl.LightningModule):
         self.dad_head = dad_head
         self.automatic_optimization = False
 
-        # Make sure to freeze the Local-Net if it's not supposed to be finetuned
+        # Make sure to freeze the Local-Net
         self.local_net.eval()
         for param in self.local_net.parameters():
             param.requires_grad = False
@@ -24,8 +24,8 @@ class JointGlobalDADTrainingModule(pl.LightningModule):
         # Get local and global features
         local_features = self.local_net(patch)
         global_features, _ = self.global_net(I, binary_masks)
-        local_features_flat = local_features.view(local_features.size(0), -1)
-        global_features_flat = global_features.view(global_features.size(0), -1)
+        local_features_flat = torch.flatten(local_features, start_dim=1)
+        global_features_flat = torch.flatten(global_features, start_dim=1)
         # Concatenate features for DAD-head input
         combined_features = torch.cat((local_features_flat, global_features_flat), dim=1)
         # Pass concatenated features through DAD-head
@@ -42,13 +42,13 @@ class JointGlobalDADTrainingModule(pl.LightningModule):
         local_features, global_features, dad_output = self.forward(batch)
         _, _ ,_ , targets = batch
         loss = self.joint_loss(local_features, global_features, dad_output, targets)
-        avg_loss = loss.mean()
+        #avg_loss = loss.mean()
         # Backward pass for both optimizers
-        self.manual_backward(avg_loss)
+        self.manual_backward(loss)
         # Optimizer steps
         optimizer_global.step()
         optimizer_dad.step()
-        self.log('train_loss', avg_loss, prog_bar=True, on_epoch=True, on_step=False)
+        self.log('train_loss', loss, prog_bar=True, on_epoch=True, on_step=False)
         return loss
     
     def validation_step(self, batch, batch_idx):
@@ -56,8 +56,8 @@ class JointGlobalDADTrainingModule(pl.LightningModule):
         local_features, global_features, dad_output = self.forward(batch)
         _, _ ,_ , targets = batch
         loss = self.joint_loss(local_features, global_features, dad_output, targets)
-        avg_loss = loss.mean()
-        self.log('val_loss', avg_loss, prog_bar=True, on_epoch=True, on_step=False)
+        #avg_loss = loss.mean()
+        self.log('val_loss', loss, prog_bar=True, on_epoch=True, on_step=False)
         return loss
 
     def joint_loss(self, local_features, global_features, dad_output, targets):
