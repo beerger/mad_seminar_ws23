@@ -47,8 +47,8 @@ class AnomalyDetector:
             global_features, _ = self.global_net(image, binary_masks[i])
             local_features = self.local_net(patches[i])
             iad_score = iad_head(local_features, global_features)
-            local_features_flat = local_features.view(local_features.size(0), -1)
-            global_features_flat = global_features.view(global_features.size(0), -1)
+            local_features_flat = torch.flatten(local_features, start_dim=1)
+            global_features_flat = torch.flatten(global_features, start_dim=1)
             # Concatenate features for DAD-head input
             combined_features = torch.cat((local_features_flat, global_features_flat), dim=1)
             dad_score = 1 - self.dad_head.infer(combined_features)
@@ -125,7 +125,7 @@ class AnomalyDetector:
         # Normalize the anomaly map
         weight_map[weight_map == 0] = 1  # Avoid division by zero
         anomaly_map /= weight_map
-    
+
         return anomaly_map.cpu().numpy()  # Convert back to numpy array if needed
 # This class would be used after all individual components have been instantiated and trained.
 # Example usage:
