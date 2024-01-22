@@ -2,33 +2,10 @@ import torch
 from torch import Tensor
 from torchvision import transforms
 import numpy as np
-
-def iad_head(local_feature, global_feature):
-    """
-    Computes the Inconsistency Anomaly Detection (IAD) loss/score between the local and global features.
-    
-    Args:
-    - local_feature: A tensor of local features.
-    - global_feature: A tensor of global features.
-    
-    Returns:
-    - A tensor representing the IAD loss/score.
-    """
-    # Ensure the local and global features have the same shape
-    assert local_feature.shape == global_feature.shape, "Features must have the same shape"
-    
-    # Compute the squared L2 norm of the difference
-    difference = local_feature - global_feature
-    squared_l2_norm = torch.norm(difference, p=2, dim=1).pow(2)
-    
-    # Normalize by the number of features
-    feature_dim = local_feature.size(1)
-    l_iad = squared_l2_norm / feature_dim
-    
-    return l_iad
+from .iad import iad_head
 
 class AnomalyDetector:
-    def __init__(self, local_net, global_net, dad_head):
+    def __init__(self, local_net, global_net, dad_head, none=False):
         """
         Initialize the anomaly detector with Local-Net, Global-Net, IAD-Head, and DAD-Head.
         
@@ -43,10 +20,11 @@ class AnomalyDetector:
         self.global_net = global_net
         self.dad_head = dad_head
         self.lambda_s = 0.8
-
-        self.local_net.eval()
-        self.global_net.eval()
-        self.dad_head.eval()
+        
+        if not(none):
+            self.local_net.eval()
+            self.global_net.eval()
+            self.dad_head.eval()
 
     def detect_anomalies(self, image: Tensor):
         """
@@ -63,7 +41,6 @@ class AnomalyDetector:
         # Initialize lists to hold individual scores
         iad_scores = []
         dad_scores = []
-
 
         # Iterate over each patch to extract local features and compute scores
         for i in range(len(patches)):
