@@ -24,7 +24,6 @@ class JointTrainingDataset(Dataset):
         self.image_paths = image_paths
         self.is_train = is_train
         self.transform_local = self._build_transforms_local()
-        self.transform_global = self._build_transforms_global()
         
         if caching_strategy == 'at-init':
             self.cache = self._preload_images()
@@ -36,34 +35,38 @@ class JointTrainingDataset(Dataset):
     def _preload_images(self):
         cache = {}
         for idx in range(len(self.image_paths)):
-            cache[idx] = self.load_and_transform_image(idx)
+            image = Image.open(self.image_paths[idx]).convert('RGB')
+            I = transforms.Resize((256, 256), interpolation=transforms.InterpolationMode.BILINEAR, antialias=True)(image)
+            cache[idx] = I  # Cache the full-size image only
         return cache
-
+    
     def __len__(self):
         return len(self.image_paths)
 
     def __getitem__(self, idx):
         if self.cache is not None:
-            # If caching is enabled and the image is cached, return it from the cache
             if idx in self.cache:
-                I, patch, binary_mask, target_label = self.cache[idx]
+                image = self.cache[idx]  # Retrieve the full-size image from cache
             else:
-                # If the image is not cached, load and transform it, then add it to the cache
-                I, patch, binary_mask, target_label = self.load_and_transform_image(idx)
-                self.cache[idx] = (I, patch, binary_mask, target_label)
+                image = self.load_and_transform_image(idx)
+                self.cache[idx] = image  # Cache the full-size image only
         else:
-            # If caching is not enabled, simply load and transform the image without caching
-            I, patch, binary_mask, target_label = self.load_and_transform_image(idx)
+            image = self.load_and_transform_image(idx)
 
-        return I, patch, binary_mask, target_label
+        # Generate a new patch, binary mask, and target label every time
+        patch, binary_mask, target_label = self.create_patch_binary_mask_and_target_label(image)
 
+        image = transforms.ToTensor()(image)
+
+        return image, patch, binary_mask, target_label
+    
     def load_and_transform_image(self, idx):
         image_path = self.image_paths[idx]
-        try:
-            image = Image.open(image_path).convert('RGB')
+        image = Image.open(image_path).convert('RGB')
+        image = transforms.Resize((256, 256), interpolation=transforms.InterpolationMode.BILINEAR, antialias=True)(image)
+        return image  # Return the full-size image only
 
-            # Image for Global-Net
-            I = transforms.Resize((256, 256), interpolation=transforms.InterpolationMode.BILINEAR, antialias=True)(image)
+    def create_patch_binary_mask_and_target_label(self, image):
 
             # Create a patch with or without modifications
             if self.is_train:
@@ -71,7 +74,7 @@ class JointTrainingDataset(Dataset):
             else:
                 crop_transform = transforms.CenterCrop(33)
             
-            positive_patch, i, j, h, w = self.random_crop_with_coords(I, crop_transform)
+            positive_patch, i, j, h, w = self.random_crop_with_coords(image, crop_transform)
             positive_patch = transforms.ToTensor()(positive_patch)
 
             patch, target_label = None, None
@@ -98,11 +101,15 @@ class JointTrainingDataset(Dataset):
 
             binary_mask = binary_mask.unsqueeze(0) # Now binary_mask has shape: [1, height, width]
 
-            I = transforms.ToTensor()(I)
-            return I, patch, binary_mask, target_label
-        except UnidentifiedImageError:
-            print(f"Error loading image: {image_path}")
-            return None, None, None, None
+            return patch, binary_mask, target_label
+    
+    def _build_transforms_local(self):
+        # Define transforms for Local-Net
+        return transforms.Compose([
+            #transforms.ToTensor(),
+            # Mean and std from ImageNet
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
 
     def add_stain(self, img, size, color, irregularity, blur):
 
@@ -211,21 +218,6 @@ class JointTrainingDataset(Dataset):
 
         cropped_img = transforms.functional.crop(img, i, j, h, w)
         return cropped_img, i, j, h, w
-
-
-    def _build_transforms_local(self):
-        # Define transforms for Local-Net
-        return transforms.Compose([
-            #transforms.ToTensor(),
-            # Mean and std from ImageNet
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-        ])
-
-    def _build_transforms_global(self):
-        return transforms.Compose([
-            transforms.Resize((256, 256), interpolation=transforms.InterpolationMode.BILINEAR, antialias=True),  # Resize to the expected input size for the Global-Net
-            transforms.ToTensor(),
-        ])
 
 
 class JointTrainingDataModule(pl.LightningDataModule):
