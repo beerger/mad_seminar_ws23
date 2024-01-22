@@ -25,49 +25,47 @@ class MVTecPatchesDataset(Dataset):
     def _preload_images(self):
         cache = {}
         for idx in range(len(self.image_paths)):
-            cache[idx] = self.load_and_transform_image(idx)
+            image = Image.open(self.image_paths[idx]).convert('RGB')
+            image = transforms.Resize((256, 256), interpolation=transforms.InterpolationMode.BILINEAR, antialias=True)(image)
+            cache[idx] = image
         return cache
 
     def __len__(self):
         return len(self.image_paths)
 
     def __getitem__(self, idx):
+        # Load the full-size image from cache or disk
         if self.cache is not None:
-            # If caching is enabled and the image is cached, return it from the cache
             if idx in self.cache:
-                patch_local, patch_resnet = self.cache[idx]
+                image = self.cache[idx]
             else:
-                # If the image is not cached, load and transform it, then add it to the cache
-                patch_local, patch_resnet = self.load_and_transform_image(idx)
-                if patch_local is None or patch_resnet is None:
-                    # Skip this index and try the next one
-                    return self.__getitem__((idx + 1) % len(self.image_paths))
-                self.cache[idx] = (patch_local, patch_resnet)
+                image = self._load_image(idx)
+                self.cache[idx] = image
         else:
-            # If caching is not enabled, simply load and transform the image without caching
-            patch_local, patch_resnet = self.load_and_transform_image(idx)
+            image = self._load_image(idx)
+
+        # Generate a new patch every time
+        patch = self._generate_patch(image)
+
+        # Apply local and resnet transformations to the patch
+        patch_local = self.transform_local(patch)
+        patch_resnet = self.transform_resnet(patch)
 
         return patch_local, patch_resnet
 
-    def load_and_transform_image(self, idx):
+    def _generate_patch(self, image):
+        crop_transform = transforms.RandomCrop(33) if self.is_train else transforms.CenterCrop(33)
+        return crop_transform(image)
+        
+    def _load_image(self, idx):
         image_path = self.image_paths[idx]
         try:
             image = Image.open(image_path).convert('RGB')
-
-            # Resize image to 256x256
             image = transforms.Resize((256, 256), interpolation=transforms.InterpolationMode.BILINEAR, antialias=True)(image)
-
-            # Create a patch for local and resnet transformations
-            patch = transforms.RandomCrop(33)(image) if self.is_train else transforms.CenterCrop(33)(image)
-
-            # Apply transformations
-            patch_local = self.transform_local(patch)
-            patch_resnet = self.transform_resnet(patch)
-
-            return patch_local, patch_resnet
+            return image
         except UnidentifiedImageError:
             print(f"Error loading image: {image_path}")
-            return None, None
+            return None
 
     def _build_transforms_local(self):
         # Define transforms for Local-Net
