@@ -25,7 +25,7 @@ class DADHead(pl.LightningModule):
     def infer(self, x):
         # Use this method for inference to get class probabilities
         logits = self.forward(x)
-        probabilities = F.softmax(x, dim=1)
+        probabilities = F.softmax(logits, dim=1)
         # Assuming the positive class is the first class
         prob_positive_class = probabilities[:, 0]
         return prob_positive_class
