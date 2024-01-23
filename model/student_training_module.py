@@ -27,6 +27,20 @@ class StudentTrainingModule(pl.LightningModule):
         self.teacher_model.eval()
         for param in self.teacher_model.parameters():
             param.requires_grad = False
+
+        # Set up the decoder based on the mode
+        if self.mode == 'finetuning':
+            # In fine-tuning mode, the decoder should not be updated
+            self.decoder.eval()
+            for param in self.decoder.parameters():
+                param.requires_grad = False
+        elif self.mode == 'distillation':
+            # In distillation mode, the decoder is part of the training process
+            self.decoder.train()
+            for param in self.decoder.parameters():
+                param.requires_grad = True
+        else:
+            raise ValueError(f"Unsupported mode: {self.mode}")
             
     def loss_function(self, student_output, teacher_output):
         # Compute knowledge and compactness loss
