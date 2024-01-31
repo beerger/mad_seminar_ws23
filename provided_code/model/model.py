@@ -1,6 +1,6 @@
-from model.ae import AE
-from model.vae import VAE
-from model.ra import RA
+from provided_code.model.ae import AE
+from provided_code.model.vae import VAE
+from provided_code.model.ra import RA
 
 
 def get_model(config):

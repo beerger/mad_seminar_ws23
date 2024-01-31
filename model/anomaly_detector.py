@@ -87,6 +87,7 @@ class AnomalyDetector:
         return batch_anomaly_maps
     
     def evaluate_performance(self):
+        pass
 
     def visualize_anomaly(self, image: Tensor, anomaly_map: np.ndarray, save_path=None, numpy_save_path=None, alpha=0.48, sigma=5):
         """

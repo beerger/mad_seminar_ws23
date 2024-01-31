@@ -1,9 +1,0 @@
-model_name: ANOMALYDETECTOR
-
-seed: 42
-
-split_dir: ./data/splits
-
-#target_size: !<tag:yaml.org,2002:seq> [128,128] do I need this?
-
-device: cpu
