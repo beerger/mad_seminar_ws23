@@ -85,8 +85,10 @@ class AnomalyDetector:
             batch_anomaly_maps.append(anomaly_map)
 
         return batch_anomaly_maps
+    
+    def evaluate_performance(self):
 
-    def visualize_anomaly(self, image: Tensor, anomaly_map: np.ndarray, save_path=None, numpy_save_path=None, alpha=0.5, sigma=5):
+    def visualize_anomaly(self, image: Tensor, anomaly_map: np.ndarray, save_path=None, numpy_save_path=None, alpha=0.48, sigma=5):
         """
         Visualize the anomaly by blending the anomaly map with the original image.
 

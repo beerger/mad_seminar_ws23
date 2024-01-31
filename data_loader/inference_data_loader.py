@@ -4,7 +4,7 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from PIL import UnidentifiedImageError
 
-class MVTecInferenceDataSet(Dataset):
+class InferenceDataSet(Dataset):
     def __init__(self, image_paths, caching_strategy='none'):
         self.image_paths = image_paths
         self.transform_global = self._build_transforms_global()
@@ -57,7 +57,7 @@ class MVTecInferenceDataSet(Dataset):
         ])
 
 
-class MVTecInferenceDataModule(pl.LightningDataModule):
+class InferenceDataModule(pl.LightningDataModule):
 
     def __init__(self, test_image_paths, batch_size=16, num_workers=4, caching_strategy='none'):
         super().__init__()
@@ -72,7 +72,7 @@ class MVTecInferenceDataModule(pl.LightningDataModule):
             print("Warning: `caching_strategy` is set to 'on-the-fly'. Ensure you have enough memory.")
 
     def test_dataloader(self):
-        test_dataset = MVTecInferenceDataSet(
+        test_dataset = InferenceDataSet(
             self.test_image_paths,
             caching_strategy=self.caching_strategy
         )

@@ -8,7 +8,7 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from PIL import UnidentifiedImageError
 
-class MVTecPatchesDataset(Dataset):
+class LocalNetPatchesDataset(Dataset):
     def __init__(self, image_paths, is_train=True, caching_strategy='none'):
         self.image_paths = image_paths
         self.is_train = is_train
@@ -84,11 +84,11 @@ class MVTecPatchesDataset(Dataset):
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
 
-class MVTecDataModule(pl.LightningDataModule):
+class LocalNetDataModule(pl.LightningDataModule):
     """
-    PyTorch Lightning data module for MVTec AD dataset.
+    PyTorch Lightning data module for training of LocalNet
 
-    This module handles the loading and batching of MVTec AD data for training and validation. 
+    This module handles the loading and batching of images for training and validation. 
     It provides flexibility in data caching strategies to optimize memory usage and data access speed.
 
     Attributes:
@@ -120,7 +120,7 @@ class MVTecDataModule(pl.LightningDataModule):
             print("Warning: `caching_strategy` is set to 'on-the-fly'. Ensure you have enough memory.")
 
     def train_dataloader(self):
-        train_dataset = MVTecPatchesDataset(
+        train_dataset = LocalNetPatchesDataset(
             self.train_image_paths,
             is_train=True, 
             caching_strategy=self.caching_strategy
@@ -128,7 +128,7 @@ class MVTecDataModule(pl.LightningDataModule):
         return DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
 
     def val_dataloader(self):
-        val_dataset = MVTecPatchesDataset(
+        val_dataset = LocalNetPatchesDataset(
             self.val_image_paths, 
             is_train=False, 
             caching_strategy=self.caching_strategy
