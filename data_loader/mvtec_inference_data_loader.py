@@ -76,4 +76,4 @@ class MVTecInferenceDataModule(pl.LightningDataModule):
             self.test_image_paths,
             caching_strategy=self.caching_strategy
         )
-        return DataLoader(test_dataset, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
+        return DataLoader(test_dataset, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
