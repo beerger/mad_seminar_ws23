@@ -2,7 +2,7 @@ import torch
 from torch import Tensor
 from torchvision import transforms
 import numpy as np
-from .iad import iad_head
+from .model.iad import iad_head
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
