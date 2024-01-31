@@ -3,6 +3,11 @@ from torch import Tensor
 from torchvision import transforms
 import numpy as np
 from .iad import iad_head
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.colors import Normalize
+from PIL import Image
+from scipy.ndimage import gaussian_filter
 
 class AnomalyDetector:
     def __init__(self, local_net, global_net, dad_head, none=False):
@@ -61,7 +66,71 @@ class AnomalyDetector:
         anomaly_map = self.generate_anomaly_map(final_scores, image.shape, patch_coords)
 
         return anomaly_map
+    
+    def detect_anomalies_batch(self, images: Tensor):
+        """
+        Detect anomalies in a batch of images.
 
+        Args:
+        - images: A batch of input image tensors.
+
+        Returns:
+        - A list of anomaly score maps, one for each image.
+        """
+        batch_anomaly_maps = []
+
+        for image in images:
+            # unsqueeze to add a 4th dimension, expected by the network's forward pass
+            anomaly_map = self.detect_anomalies(image.unsqueeze(0))
+            batch_anomaly_maps.append(anomaly_map)
+
+        return batch_anomaly_maps
+
+    def visualize_anomaly(self, image: Tensor, anomaly_map: np.ndarray, save_path=None, numpy_save_path=None, alpha=0.5, sigma=5):
+        """
+        Visualize the anomaly by blending the anomaly map with the original image.
+
+        Args:
+        - image: The original image tensor.
+        - anomaly_map: The anomaly map as a numpy array.
+        - save_path: Optional path to save the visualized image.
+        - numpy_save_path: Optional path to save numpy array of blended image
+        - alpha: Transparency factor for blending.
+        - sigma: Sigma value for Gaussian blur.
+
+        Returns:
+        - None. Displays or displays and saves the blended image.
+        """
+
+        # Apply Gaussian blur to the anomaly map
+        smoothed_anomaly_map = gaussian_filter(anomaly_map, sigma=sigma)
+
+        # Convert to numpy array and transpose to HWC format for image display
+        image_np = image.cpu().detach().numpy().transpose(1, 2, 0)
+        image_pil = Image.fromarray((image_np * 255).astype(np.uint8))
+
+        # Normalize and apply colormap
+        normalized_anomaly_map = Normalize(0, 1)((smoothed_anomaly_map - np.min(smoothed_anomaly_map)) / (np.max(smoothed_anomaly_map) - np.min(smoothed_anomaly_map)))
+        
+        # Apply a colormap to the normalized anomaly map
+        colormap = plt.cm.jet
+        normed_data = Normalize(0, 1)(normalized_anomaly_map)
+        mapped_data = colormap(normed_data)
+        
+        # Convert the RGBA image to an RGB image
+        mapped_data_rgb = (mapped_data[..., :3] * 255).astype(np.uint8)
+
+        # Blend and display or save
+        blended_image = Image.blend(image_pil.convert("RGBA"), Image.fromarray(mapped_data_rgb).convert("RGBA"), alpha=alpha)
+        if save_path:
+            blended_image.save(save_path)
+        if numpy_save_path:
+            blended_np = np.array(blended_image)
+            np.save(numpy_save_path, blended_np)
+        
+        plt.imshow(blended_image)
+        plt.axis('off')
+        plt.show()
 
     def create_patches_and_masks(self, image, patch_size=33, patches_per_side=20, return_coords=False):
 
