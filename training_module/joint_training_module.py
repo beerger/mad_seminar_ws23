@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch import Tensor
-from ..model.iad import iad_head
+from model.iad import iad_head
 
 class JointGlobalDADTrainingModule(pl.LightningModule):
     def __init__(self, config, local_net, global_net, dad_head):
