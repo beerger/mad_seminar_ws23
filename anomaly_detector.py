@@ -151,9 +151,8 @@ class AnomalyDetector:
         normalized_anomaly_map = Normalize(0, 1)((smoothed_anomaly_map - np.min(smoothed_anomaly_map)) / (np.max(smoothed_anomaly_map) - np.min(smoothed_anomaly_map)))
         
         # Apply a colormap to the normalized anomaly map
-        colormap = plt.cm.jet
         normed_data = Normalize(0, 1)(normalized_anomaly_map)
-        mapped_data = colormap(normed_data)
+        mapped_data = cmap(normed_data)
         
         # Convert the RGBA image to an RGB image
         mapped_data_rgb = (mapped_data[..., :3] * 255).astype(np.uint8)

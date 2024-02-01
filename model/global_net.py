@@ -134,7 +134,7 @@ class PartialConv2d(nn.Conv2d):
                     else:
                         mask = torch.ones(1, 1, input.data.shape[2], input.data.shape[3]).to(input)
                 else:
-                    mask = mask_in
+                    mask = mask_in.to(input.device)
                         
                 self.update_mask = F.conv2d(mask, self.weight_maskUpdater, bias=None, stride=self.stride, padding=self.padding, dilation=self.dilation, groups=1)
 
