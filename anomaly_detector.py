@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
 from PIL import Image
 from scipy.ndimage import gaussian_filter
+from sklearn.metrics import roc_curve, auc, precision_recall_curve, average_precision_score
 
 class AnomalyDetector:
     def __init__(self, local_net, global_net, dad_head, none=False):
@@ -86,10 +87,34 @@ class AnomalyDetector:
 
         return batch_anomaly_maps
     
-    def evaluate_performance(self):
-        pass
+    def evaluate_performance(self, images: Tensor, groundtruth_masks):
+        """
+        Evaluate the performance of the anomaly detector using pixel-level metrics.
 
-    def visualize_anomaly(self, image: Tensor, anomaly_map: np.ndarray, save_path=None, numpy_save_path=None, alpha=0.48, sigma=5):
+        Args:
+        - images: A batch of input image tensors.
+        - groundtruth_masks: Ground truth binary masks (normal=0, anomalous=1) for each pixel.
+
+        Returns:
+        - AUROC score, Precision-Recall curve, and average precision score.
+        """
+        predicted_anomaly_scores = self.detect_anomalies_batch(images)
+        predicted_anomaly_scores_flat = np.array(predicted_anomaly_scores).flatten()
+        gt_flat = np.array(groundtruth_masks).flatten()
+
+        # Calculate AUROC
+        fpr, tpr, _ = roc_curve(gt_flat, predicted_anomaly_scores_flat)
+        roc_auc = auc(fpr, tpr)
+
+        # Calculate Precision-Recall Curve
+        precision, recall, _ = precision_recall_curve(gt_flat, predicted_anomaly_scores_flat)
+        average_precision = average_precision_score(gt_flat, predicted_anomaly_scores_flat)
+
+        return roc_auc, (precision, recall), average_precision
+
+        
+
+    def visualize_anomaly(self, image: Tensor, anomaly_map: np.ndarray, save_path=None, numpy_save_path=None, alpha=0.48, sigma=5, cmap=plt.cm.jet):
         """
         Visualize the anomaly by blending the anomaly map with the original image.
 
