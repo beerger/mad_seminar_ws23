@@ -78,9 +78,10 @@ class AnomalyDetector:
         Returns:
         - A list of anomaly score maps, one for each image.
         """
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         batch_anomaly_maps = []
 
-        for image in images:
+        for image in images.to(device):
             # unsqueeze to add a 4th dimension, expected by the network's forward pass
             anomaly_map = self.detect_anomalies(image.unsqueeze(0))
             batch_anomaly_maps.append(anomaly_map)
@@ -96,21 +97,30 @@ class AnomalyDetector:
         - groundtruth_masks: Ground truth binary masks (normal=0, anomalous=1) for each pixel.
 
         Returns:
-        - AUROC score, Precision-Recall curve, and average precision score.
+        - A dictionary with AUROC score, FPR, TPR, Precision-Recall curve, and average precision score.
         """
         predicted_anomaly_scores = self.detect_anomalies_batch(images)
         predicted_anomaly_scores_flat = np.array(predicted_anomaly_scores).flatten()
         gt_flat = np.array(groundtruth_masks).flatten()
 
-        # Calculate AUROC
-        fpr, tpr, _ = roc_curve(gt_flat, predicted_anomaly_scores_flat)
+
+        # Calculate AUROC and FPR, TPR for the ROC curve
+        fpr, tpr, _ = roc_curve(gt_flat, predicted_anomaly_scores_flat)  # continuous scores
         roc_auc = auc(fpr, tpr)
 
-        # Calculate Precision-Recall Curve
-        precision, recall, _ = precision_recall_curve(gt_flat, predicted_anomaly_scores_flat)
+        # Calculate Precision-Recall Curve (using continuous scores)
+        precision, recall, _ = precision_recall_curve(gt_flat, predicted_anomaly_scores_flat)  # continuous scores
+        prc_auc = auc(recall, precision)
         average_precision = average_precision_score(gt_flat, predicted_anomaly_scores_flat)
 
-        return roc_auc, (precision, recall), average_precision
+        return {
+            'AUROC': roc_auc,
+            'FPR': fpr,
+            'TPR': tpr,
+            'PRC': (precision, recall),
+            'AVG_PRECISION': average_precision,
+            'AUPRC': prc_auc
+        }
 
         
 
