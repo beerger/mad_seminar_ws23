@@ -9,20 +9,19 @@ from torchvision import transforms
 
 class TestDataset(Dataset):
 
-    def __init__(self, img_csv: str, pos_mask_csv: str):
+    def __init__(self, img_paths: str, pos_mask_paths):
         """
         Loads anomalous images, and their positive masks
 
-        @param img_csv: str
-            path to csv file containing filenames to the images
-        @param img_csv: str
-            path to csv file containing filenames to the positive masks
+        @param img_paths: list
+            List of paths to the images.
+        @param pos_mask_paths: list
+            List of paths to the positive masks.
         """
         super(TestDataset, self).__init__()
-        self.img_paths = pd.read_csv(img_csv)['filename'].tolist()
-        self.pos_mask_paths = pd.read_csv(pos_mask_csv)['filename'].tolist()
+        self.img_paths = img_paths
+        self.pos_mask_paths = pos_mask_paths
         self.transform_global = self._build_transforms_global()
-
         assert len(self.img_paths) == len(self.pos_mask_paths)
 
     def __len__(self):
@@ -49,7 +48,7 @@ class TestDataset(Dataset):
 
 class TestDataModule(pl.LightningDataModule):
 
-    def __init__(self, split_dir: str, batch_size: int):
+    def __init__(self, split_dir: str, batch_size=None):
         super().__init__()
         self.split_dir = split_dir
         self.batch_size = batch_size
@@ -64,8 +63,15 @@ class TestDataModule(pl.LightningDataModule):
         img_csv = os.path.join(self.split_dir, f'{pathology}.csv')
         pos_mask_csv = os.path.join(self.split_dir, f'{pathology}_ann.csv')
 
-        return DataLoader(TestDataset(img_csv, pos_mask_csv),
-                          batch_size=self.batch_size,
+        img_paths = pd.read_csv(img_csv)['filename'].tolist()
+        pos_mask_paths = pd.read_csv(pos_mask_csv)['filename'].tolist()
+
+        if not(self.batch_size):
+          batch_size = len(img_paths)
+        else:
+          batch_size = self.batch_size
+        return DataLoader(TestDataset(img_paths, pos_mask_paths),
+                          batch_size=batch_size,
                           shuffle=False,
                           drop_last=False)
 
@@ -108,5 +114,9 @@ class TestDataModule(pl.LightningDataModule):
             all_pos_masks.extend(pd.read_csv(pos_mask_csv)['filename'].tolist())
 
         combined_dataset = TestDataset(all_images, all_pos_masks)
-        return DataLoader(combined_dataset, batch_size=self.batch_size, shuffle=False, drop_last=False)
+        if not(self.batch_size):
+          batch_size = len(all_images)
+        else:
+          batch_size = self.batch_size
+        return DataLoader(combined_dataset, batch_size=batch_size, shuffle=False, drop_last=False)
 
