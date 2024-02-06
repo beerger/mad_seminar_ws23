@@ -89,7 +89,7 @@ class AnomalyDetector:
 
         return batch_anomaly_maps
     
-    def evaluate_performance(self, images: Tensor, groundtruth_masks):
+    def evaluate_performance(self, images: Tensor, groundtruth_masks, return_anomaly_scores=False):
         """
         Evaluate the performance of the anomaly detector using pixel-level metrics.
 
@@ -115,15 +115,26 @@ class AnomalyDetector:
         prc_auc = auc(recall, precision)
         average_precision = average_precision_score(gt_flat, predicted_anomaly_scores_flat)
 
-        return {
-            'AUROC': roc_auc,
-            'FPR': fpr,
-            'TPR': tpr,
-            'PRC': (precision, recall),
-            'AVG_PRECISION': average_precision,
-            'AUPRC': prc_auc
-        }
-    
+        if return_anomaly_scores:
+
+            return {
+                'AUROC': roc_auc,
+                'FPR': fpr,
+                'TPR': tpr,
+                'PRC': (precision, recall),
+                'AVG_PRECISION': average_precision,
+                'AUPRC': prc_auc
+            }, predicted_anomaly_scores
+        else:
+            return {
+                'AUROC': roc_auc,
+                'FPR': fpr,
+                'TPR': tpr,
+                'PRC': (precision, recall),
+                'AVG_PRECISION': average_precision,
+                'AUPRC': prc_auc
+            }
+        
     def plot_prc(self, precision, recall, prc_auc, string):
         # Plotting the Precision-Recall curve
         plt.figure(figsize=(8, 6))
@@ -149,7 +160,7 @@ class AnomalyDetector:
         plt.grid(True)
         plt.show()
     
-    def plot_histogram(self, anomaly_score_maps, gt_masks):
+    def plot_histogram(self, anomaly_score_maps, gt_masks, string):
         
         # Flatten the ground truth masks to match the anomaly scores
         ground_truth_masks = gt_masks.numpy().flatten()
@@ -183,7 +194,7 @@ class AnomalyDetector:
             color="#ee6c4d",
         )
 
-        plt.title("Histogram of Anomaly Scores")
+        plt.title(f"Histogram of Anomaly Scores for {string}")
         plt.xlim(left=0)
         plt.xlabel("Anomaly Score")
         plt.ylabel("Density")
