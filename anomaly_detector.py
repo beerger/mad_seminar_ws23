@@ -96,10 +96,11 @@ class AnomalyDetector:
         Args:
         - images: A batch of input image tensors.
         - groundtruth_masks: Ground truth binary masks (normal=0, anomalous=1) for each pixel.
+        - return_anomaly_scores: Returns the batch's anomaly scores if set to True. Defaults to False.
 
         Returns:
         - A dictionary with AUROC score, FPR, TPR, Precision-Recall curve, average precision score, and AUPRC.
-
+        - If return_anomaly_scores=True: A list of anomaly score maps, one for each image
         """
         predicted_anomaly_scores = self.detect_anomalies(images)
         predicted_anomaly_scores_flat = np.array(predicted_anomaly_scores).flatten()
