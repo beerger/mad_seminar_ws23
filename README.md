@@ -19,6 +19,8 @@ To run inference, and evaluate the model:
 3. Scroll down to section 3 (`Inference, and evaluating`)
 4. Run code blocks in order, where each comment above the cell will tell you a bit about what the code is for
 
+**Strong recommendation**: Run with GPU, preferably, A100/V100 on Google Colab. Inference is extremely slow on CPU.
+
 ## Note:
 
 Ignore the code in the previous two sections in `brain_mri.ipynb`, as this is for fine-tuning/training, and is using specific paths to my Google Drive, which will thus result in an error if trying to run it
