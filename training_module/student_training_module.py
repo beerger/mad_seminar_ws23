@@ -76,22 +76,6 @@ class StudentTrainingModule(pl.LightningModule):
 
         return compactness
         
-    #def compactness_loss(self, student_output):
-    #    n = student_output.size(0)  # Batch size
-    #    output_flat = student_output.view(n, -1)  # Flatten the feature maps
-#
-    #    # Normalize the features to zero mean and unit variance
-    #    mean = output_flat.mean(dim=1, keepdim=True)
-    #    std = output_flat.std(dim=1, keepdim=True) + 1e-8  # Add epsilon to avoid division by zero
-    #    output_norm = (output_flat - mean) / std
-#
-    #    # Compute the correlation matrix using normalized features
-    #    correlation_matrix = torch.matmul(output_norm, output_norm.t())
-#
-    #    # Compute compactness loss as the sum of off-diagonal elements
-    #    loss_c = correlation_matrix.sum() - correlation_matrix.diag().sum()
-    #    return loss_c
-
     def training_step(self, batch: Tensor, batch_idx):
         local_patch, resnet_patch = batch
         student_output = self.student_model(local_patch)
