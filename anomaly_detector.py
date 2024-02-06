@@ -9,6 +9,7 @@ from matplotlib.colors import Normalize
 from PIL import Image
 from scipy.ndimage import gaussian_filter
 from sklearn.metrics import roc_curve, auc, precision_recall_curve, average_precision_score
+import seaborn as sns
 
 class AnomalyDetector:
     def __init__(self, local_net, global_net, dad_head, none=False):
@@ -32,7 +33,7 @@ class AnomalyDetector:
             self.global_net.eval()
             self.dad_head.eval()
 
-    def detect_anomalies(self, image: Tensor):
+    def detect_anomalies_image(self, image: Tensor):
         """
         Detect anomalies in the given image.
         
@@ -68,7 +69,7 @@ class AnomalyDetector:
 
         return anomaly_map
     
-    def detect_anomalies_batch(self, images: Tensor):
+    def detect_anomalies(self, images: Tensor):
         """
         Detect anomalies in a batch of images.
 
@@ -83,7 +84,7 @@ class AnomalyDetector:
 
         for image in images.to(device):
             # unsqueeze to add a 4th dimension, expected by the network's forward pass
-            anomaly_map = self.detect_anomalies(image.unsqueeze(0))
+            anomaly_map = self.detect_anomalies_image(image.unsqueeze(0))
             batch_anomaly_maps.append(anomaly_map)
 
         return batch_anomaly_maps
@@ -97,9 +98,10 @@ class AnomalyDetector:
         - groundtruth_masks: Ground truth binary masks (normal=0, anomalous=1) for each pixel.
 
         Returns:
-        - A dictionary with AUROC score, FPR, TPR, Precision-Recall curve, and average precision score.
+        - A dictionary with AUROC score, FPR, TPR, Precision-Recall curve, average precision score, and AUPRC.
+
         """
-        predicted_anomaly_scores = self.detect_anomalies_batch(images)
+        predicted_anomaly_scores = self.detect_anomalies(images)
         predicted_anomaly_scores_flat = np.array(predicted_anomaly_scores).flatten()
         gt_flat = np.array(groundtruth_masks).flatten()
 
@@ -121,9 +123,73 @@ class AnomalyDetector:
             'AVG_PRECISION': average_precision,
             'AUPRC': prc_auc
         }
-
+    
+    def plot_prc(self, precision, recall, prc_auc, string):
+        # Plotting the Precision-Recall curve
+        plt.figure(figsize=(8, 6))
+        plt.plot(recall, precision, label=f'AP={prc_auc:0.2f}')
+        plt.xlabel('Recall')
+        plt.ylabel('Precision')
+        plt.title(f'Precision-Recall curve for {string}')
+        plt.legend(loc='lower left')
+        plt.grid(True)
+        plt.show()
+    
+    def plot_roc(self, fpr, tpr, roc_auc, string):
+        # Plotting the ROC curve
+        plt.figure(figsize=(8, 6))
+        plt.plot(fpr, tpr, color='blue', label=f'ROC curve (area = {roc_auc:0.2f})')
+        plt.plot([0, 1], [0, 1], color='darkorange', linestyle='--')  # Diagonal line for reference
+        plt.xlim([0.0, 1.0])
+        plt.ylim([0.0, 1.05])
+        plt.xlabel('False Positive Rate')
+        plt.ylabel('True Positive Rate')
+        plt.title(f'Receiver Operating Characteristic (ROC) Curve for {string}')
+        plt.legend(loc='lower right')
+        plt.grid(True)
+        plt.show()
+    
+    def plot_histogram(self, anomaly_score_maps, gt_masks):
         
+        # Flatten the ground truth masks to match the anomaly scores
+        ground_truth_masks = gt_masks.numpy().flatten()
 
+        # Flatten all anomaly score arrays to create a single array of scores
+        anomaly_scores = np.concatenate([scores.flatten() for scores in anomaly_score_maps])
+
+        # Now, separate the scores based on the ground truth masks
+        scores_normal = anomaly_scores[ground_truth_masks == 0]
+        scores_abnormal = anomaly_scores[ground_truth_masks == 1]
+
+        BINS = 100
+
+        plt.figure(figsize=(8, 6))
+
+        # Histogram for normal scores
+        sns.histplot(
+            scores_normal,
+            bins=BINS,
+            kde=True,
+            label="Normal",
+            color="#3d5a80",
+        )
+
+        # Histogram for abnormal scores
+        sns.histplot(
+            scores_abnormal,
+            bins=BINS,
+            kde=True,
+            label="Abnormal",
+            color="#ee6c4d",
+        )
+
+        plt.title("Histogram of Anomaly Scores")
+        plt.xlim(left=0)
+        plt.xlabel("Anomaly Score")
+        plt.ylabel("Density")
+        plt.legend()
+        plt.show()
+        
     def visualize_anomaly(self, image: Tensor, anomaly_map: np.ndarray, save_path=None, numpy_save_path=None, alpha=0.48, sigma=5, cmap=plt.cm.jet):
         """
         Visualize the anomaly by blending the anomaly map with the original image.
@@ -233,7 +299,3 @@ class AnomalyDetector:
         anomaly_map /= weight_map
 
         return anomaly_map.cpu().numpy()  # Convert back to numpy array if needed
-# This class would be used after all individual components have been instantiated and trained.
-# Example usage:
-# anomaly_detector = AnomalyDetector(local_net, global_net, iad_head, dad_head, lambda_s)
-# anomaly_map = anomaly_detector.detect_anomalies(input_image)
